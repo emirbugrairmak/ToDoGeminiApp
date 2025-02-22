@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
@@ -9,12 +9,14 @@ from passlib.context import CryptContext  # Parolanın şifrelenmesi için gerek
 from fastapi.security import OAuth2PasswordRequestForm,OAuth2PasswordBearer  # "token" endpointinde sadece username ve password kısmını kullanmamızı sağlar.
 from jose import jwt, JWTError   # JWT tokenları için gerekli kütüphane
 from datetime import timedelta, datetime, timezone
-
+from fastapi.templating import Jinja2Templates    # "templates" klasörünü backend'e bağlayabilmek için gerekli kütüphane
 
 router=APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )   #  router ile birden fazla "app=FastAPI()" oluşmasını önleyerek farklı paketlerdeki tüm endpointlerin aynı app'te olmasını sağlarız.
+
+templates=Jinja2Templates(directory="templates")   # frontend'deki templates klasörünü auth işlemlerine entegre etme.
 
 SECRET_KEY="5pjk39a8m3bt0nmsgbzl332u80d8wfuwp1ymn9b0dtjvvar9g7u5ta12p5g1okry" # Secret key için 64 karakterlik random string oluşturduk.
 ALGORITHM="HS256" # JWT için kullanılacak algoritma
@@ -77,6 +79,16 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):     #
         return {'username': username, 'id': user_id, 'user_role': user_role}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Token is invalid")
+
+
+@router.get("/login-page")        # Bir kullanıcı "login-page" e girerse "login.html" i görmesi sağlanır. (backend ile frontendi bağlama)
+def render_login_page(request:Request):
+    return templates.TemplateResponse("login.html",{"request":request})
+
+@router.get("/register-page")        # Bir kullanıcı "register-page" e girerse "register.html" i görmesi sağlanır. (backend ile frontendi bağlama)
+def render_login_page(request:Request):
+    return templates.TemplateResponse("register.html",{"request":request})
+
 
 @router.post("/create_user",status_code=status.HTTP_201_CREATED)
 async def create_user(db:db_dependency,create_user_request:CreateUserRequest):
