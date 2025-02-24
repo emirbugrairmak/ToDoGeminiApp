@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, Path, HTTPException
+from fastapi import APIRouter, Depends, Path, HTTPException, Request
 from pydantic import BaseModel, Field
 from starlette import status
+from starlette.responses import RedirectResponse     # login-page'e yönlendirme yapabilmek için kullanılır.
 from model import Base, Todo
 from database import engine, SessionLocal     # "SessionLocal" sayesinde veritabanı ile bağlantı kurulur.
 # Her bir get, post vb. işlem için bağlantı kurmaya ihtiyacımız vardır. Yani bir bağımlılık (dependency)
@@ -8,7 +9,7 @@ from database import engine, SessionLocal     # "SessionLocal" sayesinde veritab
 from typing import Annotated          # Dependency'de kullanılan Annotated.
 from sqlalchemy.orm import Session, defer  # Dependency'de kullanılan Session.
 from routers.auth import get_current_user    # Bu fonk.da token için decode işlemi yapılıyor. Bu sayede hangi token kime (hangi user'a) ait onu öğrenmiş oluyoruz.
-
+from fastapi.templating import Jinja2Templates    # "templates" klasörünü backend'e bağlayabilmek için gerekli kütüphane
 
 
 # NOT : todo'nun içinde sadece todo'ya özel şeyler bulunmalı. Genel şeyler "main" in içinde olmalı.
@@ -17,6 +18,8 @@ router=APIRouter(
     prefix="/todo",      # Aşağıdaki bütün endpointlerin başına koyulur.
     tags=["Todo"]        # Bu tag ile docs'ta farklı routerların endpointlerini daha rahat bir şekilde görebilirsin.
 )      # Fastapi' uyg.nı başlatır. Bu router sayesinde main'deki app'e erişilebilir.
+
+templates=Jinja2Templates(directory="templates")  # frontend'deki templates klasörünü auth işlemlerine entegre etme.
 
 
 class ToDoRequest(BaseModel):     # Request kısmı post(veri ekleme) ve put(veri güncelleme) işlemleri için oluşturulur.
@@ -37,6 +40,51 @@ def get_db():         # Veritabanı ile bağlantı kurulmasını sağlayan fonks
 db_dependency = Annotated[Session,Depends(get_db)]      # Dependency işlemini burada sağladık. artık "db_dependency"
 # değişkeni ile bağımlılık çok kolay bir şekilde yönetilecek.
 user_dependency= Annotated[dict, Depends(get_current_user)]   # "get_current_user" fonk.u dict return eder.
+
+def redirect_to_login():      # Yönlendirme yapan bir fonksiyon yazdık.
+    redirect_response=RedirectResponse(url="/auth/login-page", status_code=status.HTTP_302_FOUND)   # Belirtilen sayfaya yönlendirme yapılır.
+    redirect_response.delete_cookie("access_token")  # Bu sayede kullanıcı otomatik giriş yapamaz. Tekrar giriş yapması gerekir. (önlem amaçlı yazılmış bir satır kod.)
+    return redirect_response
+
+
+@router.get("/todo-page")     # Bir kullanıcı "todo-page" e girerse "todo.html" i görmesi sağlanır. (backend ile frontendi bağlama)
+async def render_todo_page(request:Request,db: db_dependency):
+    try:
+        user=await get_current_user(request.cookies.get('access_token'))    # Buradaki kısımları yapmazsak kullanıcı "/todo-page" yazarak direkt olarak login yapmadan bu sayfaya girebilir. Bunu önlüyoruz.
+        # request.cookies.get('access_token') → Kullanıcının giriş yapıp yapmadığını kontrol ediyor.
+        # get_current_user(...) → Eğer token varsa, giriş yapan kullanıcıyı çekiyor.
+        if user is  None:  # Kullanıcı yok ise.
+            return redirect_to_login() # Kullanıcı login sayfasına yönlendirilir.
+        else:  # Kullanıcı var ise.
+            todos = db.query(Todo).filter(Todo.owner_id == user.get('id')).all()  # Giriş yapan kullanıcının todolarının todo.html sayfasında görüntülenmesini sağlamalıyız.
+        return templates.TemplateResponse("todo.html", {"request": request, "todos": todos, "user": user})
+    except:
+        return redirect_to_login()     # user'ı hiçbir şekilde alamazsa login'e yönlendirme yapsın.
+
+@router.get("/add-todo-page")   # Kullanıcının todo page eklemesini sağlayan kısım.
+async def render_add_todo_page(request: Request):
+    try:
+        user = await get_current_user(request.cookies.get('access_token'))
+        if user is None:
+            return redirect_to_login()
+        return templates.TemplateResponse("add-todo.html", {"request": request, "user": user})
+    except:
+        return redirect_to_login()
+
+@router.get("/edit-todo-page/{todo_id}")    # Kullanıcının todo editlemesini sağlayan kısım
+# değiştireceğimiz todo'nun id'sini path parametresi olarak vermeliyiz.
+async def render_todo_page(request: Request, todo_id: int, db: db_dependency):
+    try:
+        user = await get_current_user(request.cookies.get('access_token'))
+        if user is None:
+            return redirect_to_login()
+
+        todo = db.query(Todo).filter(Todo.id == todo_id).first()    # Bu sefer tek bir todo ile uğraşıyoruz.
+        return templates.TemplateResponse("edit-todo.html", {"request": request, "todo": todo, "user": user})
+    except:
+        return redirect_to_login()
+
+
 
 @router.get("/")          # Bütün kayıtları getirdik.
 async def read_all(user:user_dependency, db:db_dependency):      # Bağımlılığı parametre olarak aldık. # Bu fonk.un çalışması için bir user'a ihtiyacı var dedik. Bu da bağımlılıktır.
