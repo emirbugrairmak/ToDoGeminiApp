@@ -10,6 +10,13 @@ from typing import Annotated          # Dependency'de kullanılan Annotated.
 from sqlalchemy.orm import Session, defer  # Dependency'de kullanılan Session.
 from routers.auth import get_current_user    # Bu fonk.da token için decode işlemi yapılıyor. Bu sayede hangi token kime (hangi user'a) ait onu öğrenmiş oluyoruz.
 from fastapi.templating import Jinja2Templates    # "templates" klasörünü backend'e bağlayabilmek için gerekli kütüphane
+from dotenv import load_dotenv # Buradan itibaren AI için gerekli kütüphaneler var.
+import google.generativeai as genai
+import os
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, AIMessage
+import markdown
+from bs4 import BeautifulSoup       # html'i parse eden (işleyen bir kütüphane)
 
 
 # NOT : todo'nun içinde sadece todo'ya özel şeyler bulunmalı. Genel şeyler "main" in içinde olmalı.
@@ -120,6 +127,7 @@ async def create_todo(user:user_dependency,db:db_dependency,todorequest:ToDoRequ
     todo=Todo(**todorequest.dict(), owner_id=user.get('id'))     # Todo adlı veritabanı class'ımızdan bir nesne oluşturduk.
     # "owner_id" kısmı : token'dan (user'dan) gelen id owner_id'ye eşitlenir. "owner_id" todo'yu oluşturan kişinin kimliğidir.
     # title=todorequest.title, ...  gibi tek tek yazmak yerine "**todorequest.dict()" yapısını kullandık.
+    todo.description = create_todo_with_gemini(todo.description)  # description kısmında gemini'yi kullandık.
     db.add(todo)  # Todo isimli veritabanı class'ına (todo nesnesini yazdık) yeni veriyi ekledik.
     db.commit()   # İşlemin işleneceği, yapılacağı anlamına gelir.
 
@@ -158,7 +166,25 @@ async def delete_todo(user:user_dependency,db:db_dependency,id:int=Path(gt=0)):
     db.commit()
 
 
+def markdown_to_text(markdown_string):       #  Amaç markdown formatındaki (**) bir metni düz metne çevirmek. Geminiden markdown formatında cevap dönme ihtimali var.
+        html = markdown.markdown(markdown_string)
+        soup = BeautifulSoup(html, "html.parser")
+        text = soup.get_text()
+        return text
 
+
+def create_todo_with_gemini(todo_string: str):    # description kısmı için Gemini'den yararlanmak.
+        load_dotenv()   # Burası .env dosyasından API anahtarını almak için kullanılıyor.
+        genai.configure(api_key=os.environ.get('GOOGLE_API_KEY'))
+        llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")   # Gemini AI'nin sohbet modelini oluşturuyor.
+        response = llm.invoke(    # Gemini modeline iki mesaj gönderilir.
+            [
+                HumanMessage(content="I will provide you a todo item to add my to do list. What i want you to do is to create a longer and more comprehensive description of that todo item, my next message will be my todo:"),
+                # İlk mesaj prompttur.
+                HumanMessage(content=todo_string),   # Bu mesaj kullanıcının girdiği descrp metnidir.
+            ]
+        )
+        return markdown_to_text(response.content)    # Gemini'nin cevabını Markdown'dan düz metne çeviriyor ve döndürüyor.
 
 
 
