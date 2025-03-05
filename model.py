@@ -1,7 +1,7 @@
 # Veritabanında tutacağımız tablolar burada olacak.
 # database kısmından sonra 2. olarak bu kısımdan devam ediyoruz.
 
-from database import Base    # Model'ları oluştururken Base'yi kullanacağız.
+from .database import Base    # Model'ları oluştururken Base'yi kullanacağız.
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 
 

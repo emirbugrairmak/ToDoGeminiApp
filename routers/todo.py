@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, Path, HTTPException, Request
 from pydantic import BaseModel, Field
 from starlette import status
 from starlette.responses import RedirectResponse     # login-page'e yönlendirme yapabilmek için kullanılır.
-from model import Base, Todo
-from database import engine, SessionLocal     # "SessionLocal" sayesinde veritabanı ile bağlantı kurulur.
+from ..model import Base, Todo
+from ..database import engine, SessionLocal     # "SessionLocal" sayesinde veritabanı ile bağlantı kurulur.
 # Her bir get, post vb. işlem için bağlantı kurmaya ihtiyacımız vardır. Yani bir bağımlılık (dependency)
 # oluşur.
 from typing import Annotated          # Dependency'de kullanılan Annotated.
 from sqlalchemy.orm import Session, defer  # Dependency'de kullanılan Session.
-from routers.auth import get_current_user    # Bu fonk.da token için decode işlemi yapılıyor. Bu sayede hangi token kime (hangi user'a) ait onu öğrenmiş oluyoruz.
+from ..routers.auth import get_current_user    # Bu fonk.da token için decode işlemi yapılıyor. Bu sayede hangi token kime (hangi user'a) ait onu öğrenmiş oluyoruz.
 from fastapi.templating import Jinja2Templates    # "templates" klasörünü backend'e bağlayabilmek için gerekli kütüphane
 from dotenv import load_dotenv # Buradan itibaren AI için gerekli kütüphaneler var.
 import google.generativeai as genai
@@ -26,7 +26,7 @@ router=APIRouter(
     tags=["Todo"]        # Bu tag ile docs'ta farklı routerların endpointlerini daha rahat bir şekilde görebilirsin.
 )      # Fastapi' uyg.nı başlatır. Bu router sayesinde main'deki app'e erişilebilir.
 
-templates=Jinja2Templates(directory="templates")  # frontend'deki templates klasörünü auth işlemlerine entegre etme.
+templates=Jinja2Templates(directory="app/templates")  # frontend'deki templates klasörünü auth işlemlerine entegre etme.
 
 
 class ToDoRequest(BaseModel):     # Request kısmı post(veri ekleme) ve put(veri güncelleme) işlemleri için oluşturulur.

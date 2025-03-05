@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette import status
-from database import SessionLocal
-from model import User
+from ..database import SessionLocal
+from ..model import User
 from passlib.context import CryptContext  # Parolanın şifrelenmesi için gerekli kütüphane.
 from fastapi.security import OAuth2PasswordRequestForm,OAuth2PasswordBearer  # "token" endpointinde sadece username ve password kısmını kullanmamızı sağlar.
 from jose import jwt, JWTError   # JWT tokenları için gerekli kütüphane
@@ -16,7 +16,7 @@ router=APIRouter(
     tags=["Authentication"]
 )   #  router ile birden fazla "app=FastAPI()" oluşmasını önleyerek farklı paketlerdeki tüm endpointlerin aynı app'te olmasını sağlarız.
 
-templates=Jinja2Templates(directory="templates")   # frontend'deki templates klasörünü auth işlemlerine entegre etme.
+templates=Jinja2Templates(directory="app/templates")   # frontend'deki templates klasörünü auth işlemlerine entegre etme.
 
 SECRET_KEY="5pjk39a8m3bt0nmsgbzl332u80d8wfuwp1ymn9b0dtjvvar9g7u5ta12p5g1okry" # Secret key için 64 karakterlik random string oluşturduk.
 ALGORITHM="HS256" # JWT için kullanılacak algoritma
