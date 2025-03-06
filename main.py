@@ -17,7 +17,7 @@ st_abs_file_path=os.path.join(script_dir, "static/")  # Yukarıda alınan dizine
 
 
 
-app.mount("/static", StaticFiles(directory="st_abs_file_path"), name="static")  # frontend'i bağlamak için ilk yapacağımız şey
+app.mount("/static", StaticFiles(directory=st_abs_file_path), name="static")  # frontend'i bağlamak için ilk yapacağımız şey
 # static dosyasını bağlamaktır. Bu satırı yazarken yukarıda "StaticFiles" ı import ettik.
 
 @app.get("/")
